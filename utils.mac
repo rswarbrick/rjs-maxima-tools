@@ -15,3 +15,5 @@ last_position (lst, p) := block([i: _last_position(lst,p)],
 head (lst, n) := makelist(lst[i], i, 1, min(n, length(lst)))$
 /* Remaining list after the first n elements */
 tail (lst, n) := makelist(lst[i], i, min(n, length(lst))+1, length(lst))$
+
+ncr2(n,c) := mod(binomial(n,c), 2)$
