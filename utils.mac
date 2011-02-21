@@ -1,0 +1,17 @@
+safeop (expr) := if atom(expr) then [] else op(expr)$
+
+/* iota, starting at 1 (since that's the base of list indexes */
+iota (n) := makelist(i,i,1,n)$
+
+pairs (lst) := makelist([lst[n], lst[n+1]], n, 1, length(lst)-1)$
+
+_last_position (lst, p) := block([],
+  for i: length(lst) step -1 thru 1
+  do (if (is(p(lst[i]))) then return(i)))$
+
+last_position (lst, p) := block([i: _last_position(lst,p)],
+  if is(numberp(i)) then i else -1);
+
+head (lst, n) := makelist(lst[i], i, 1, min(n, length(lst)))$
+/* Remaining list after the first n elements */
+tail (lst, n) := makelist(lst[i], i, min(n, length(lst))+1, length(lst))$

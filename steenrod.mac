@@ -1,0 +1,46 @@
+/*
+  The Steenrod algebra for p=2
+*/
+
+load("./utils.mac")$
+
+/* Sq^i represented by Sq[i] */
+Sq[0] : 1$
+
+ncr2(n,c) := mod(binomial(n,c), 2)$
+
+adem_make_admissible_pair(i,j) :=
+  if is(i >= 2*j) then Sq[i].Sq[j] else
+  sum(ncr2(j-k-1, i-2*k)*Sq[i+j-k].Sq[k], k, 0, floor(i/2))$
+
+adem_analyse_part(s) := block([],
+  if is(safeop(s)=Sq) then [1,first(s)] else [s,0])$
+
+adem_resquare (n) := Sq[n]$
+adem_resquare_prod (lst) := lreduce(".", map(adem_resquare, lst), 1)$
+
+
+adem_analyse_sqp (lst) := block([],
+  if is(length(lst) < 2) then adem_resquare_prod (lst)
+  else
+  block([split: last_position(pairs(lst),
+                              lambda([p], is(p[1] < 2*p[2])))],
+        if is(-1 = split) then adem_resquare_prod (lst)
+        else
+        expand(adem_resquare_prod(head(lst,split-1)).
+               adem_make_admissible_pair(lst[split], lst[split+1]).
+               adem_resquare_prod(tail(lst,split+1)))))$
+
+adem_analyse_product(s) := block(
+  [elts: map(adem_analyse_part, args(s))],
+  lreduce(".", map(first, elts)) .
+  adem_analyse_sqp(map(second,
+                   sublist(elts, lambda([pair],
+                                        is(second(pair) # 0))))))$
+
+adem_analyse (expr) := if is(atom(expr) or freeof(Sq, expr)) then expr
+  elseif is(op(expr) = ".") then
+  block([old: expr, new: adem_analyse_product(expr)],
+        if is(old = new) then new else adem_analyse (new))
+  elseif is(op(expr) = Sq) then expr
+  else map(adem_analyse, expr)$

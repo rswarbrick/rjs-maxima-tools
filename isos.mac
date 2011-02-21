@@ -1,0 +1,33 @@
+/*
+Various algebraic isomorphisms.
+*/
+
+/* Tensor/hom isomorphism Hom(N x M, A) = Hom(M, Hom(N,A)) */
+tens2hom (old) := block([arglist: first(old)],
+  buildq ([nsym: first(arglist), others: rest(arglist),
+           body: second(old)],
+          lambda(others, lambda([nsym], body))))$
+
+is_homhom (expr) := is((safeop(expr) = lambda) and
+                       (safeop(second(expr)) = lambda) and
+                       is(length(first(second(expr))) = 1))$
+assert_homhom (expr) := block([],
+  if not(is_homhom(expr)) then
+  error("Not a lambda returning a lambda of 1 argument."), true)$
+
+
+hom2tens (hom) := block([others: first(h),
+                         nsym: first(first(second(h)))],
+  assert_homhom(hom),
+  buildq([allargs: cons(nsym, others), body: second(second(h))],
+         lambda(allargs, body)))$
+
+/*
+TESTS:
+
+is(equal(hom2tens(tens2hom(lambda([n,m,k], n+m+k))),
+         lambda([n,m,k], n+m+k)));
+
+=> true
+
+*/
