@@ -12,7 +12,8 @@ Sq[0] : 1$
 /*
   adem_analyse analyses an expression containing Sq[i] and tries to
   rewrite it in terms of the Serre-Cartan basis, where monomials
-  appear in the form Sq[a1].Sq[a2]. ... .Sq[ak] and a_{i} >= a_{i+1}.
+  appear in the form Sq[a1].Sq[a2]. ... .Sq[ak] and a_{i} >=
+  2*a_{i+1}.
 
   It will, at least, ensure that monomials in a product get rewritten
   in terms of the basis. It doesn't try to expand everything out
@@ -53,6 +54,22 @@ steenrod_degrees (expr) := block([dgs: {}],
   steenrod_degrees_worker (expr, n),
   dgs)$
 
+/*
+  List the basis elements of the mod 2 Steenrod algebra over
+  F_2. Lists in order of increasing length of product.
+
+  Example:
+
+  steenrod_f2_basis (5)
+
+  =>    [Sq , Sq  . Sq ] 
+           5    4     1  
+*/
+steenrod_f2_basis (degree) := map(adem_resquare_prod,
+                                  adem_admissible_seqs (degree));
+
+
+/****** INTERNAL CODE BELOW HERE ************************************/
 
 /* Code for Adem relations ******************************************/
 adem_make_admissible_pair(i,j) :=
@@ -122,3 +139,22 @@ steenrod_degrees_worker (expr, degexpr) := block(
   else
     error ("Unknown operator.")
   )$
+
+/* Code for Steenrod basis ******************************************/
+adem_admissible_seqs_l (len, total, ub) := block([acc: []],
+  if is(total < 2^len - 1) then false
+  elseif is(len = 1) then
+    (if is(total <= ub) then acc: [[total]])
+  else
+    map(lambda([x],
+               map(lambda([seq], acc: cons(cons(x, seq), acc)),
+                   adem_admissible_seqs_l (len-1,
+                                           total-x, floor(x/2)))),
+        makelist(i,i,2^(len-1),ub)),
+  acc)$
+
+adem_admissible_seqs (total) :=
+  lreduce(append,
+          map (lambda([l], adem_admissible_seqs_l (l, total, total)),
+               iota(log(total+1)/log(2))))$
+
