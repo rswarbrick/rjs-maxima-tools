@@ -71,3 +71,54 @@ adem_analyse_worker (expr) := block(
 */
 adem_analyse (expr) := block([modulus: 2],
   ratsimp(adem_analyse_worker (expr)))$
+
+/* BEGIN INTERNALS **************************************************/
+steenrod_register_degree (n, degexpr) := block(
+  dgs: adjoin(subst(n,'n,degexpr), dgs))$
+
+steenrod_degrees_mult (lst) := block([dset: {}],
+  for degs in
+  apply(cartesian_product,
+        map (lambda([s], block([dgs: {}],
+                               steenrod_degrees(s))), lst)) do
+  dset: adjoin(lreduce("+", degs), dset),
+  dset)$
+
+steenrod_degrees_worker (expr, degexpr) := block(
+  [cur_reg: lambda([n], steenrod_register_degree(n,degexpr))],
+  if is(atom(expr) or freeof(Sq, expr)) then
+    cur_reg(0)
+  elseif is(op(expr) = Sq) then
+    cur_reg(first(expr))
+  elseif is(op(expr) = "+" or op(expr) = "-") then
+    map(lambda([s], steenrod_degrees_worker(s, degexpr)), args(expr))
+  elseif is(op(expr) = "." or op(expr) = "*") then
+    map(cur_reg, steenrod_degrees_mult (args(expr)))
+  elseif is(op(expr) = "^^") then
+    (if not(freeof(Sq, second(expr))) then
+      error ("Raising to a power involving a Sq")
+    else
+      steenrod_degrees_worker (first(expr), degexpr*second(expr)))
+  else
+    error ("Unknown operator.")
+  )$
+/* END INTERNALS **************************************************/
+
+/*
+  Calculate the degrees in which expr lies in the mod 2 Steenrod
+  algebra. Returns the answer as a set.
+
+  Examples:
+
+  steenrod_degrees (Sq[n]);
+
+  =>    {n}
+
+  steenrod_degrees (Sq[n] . (Sq[2] + Sq[3]^^k));
+
+  =>    {n + 2, n + 3 k}
+
+*/
+steenrod_degrees (expr) := block([dgs: {}],
+  steenrod_degrees_worker (expr, n),
+  dgs)$
