@@ -9,7 +9,52 @@ load("./utils.mac")$
 */
 Sq[0] : 1$
 
-/* BEGIN INTERNALS **************************************************/
+/*
+  adem_analyse analyses an expression containing Sq[i] and tries to
+  rewrite it in terms of the Serre-Cartan basis, where monomials
+  appear in the form Sq[a1].Sq[a2]. ... .Sq[ak] and a_{i} >= a_{i+1}.
+
+  It will, at least, ensure that monomials in a product get rewritten
+  in terms of the basis. It doesn't try to expand everything out
+  completely, since I suspect that's not very helpful.
+
+  Examples:
+
+  adem_analyse (Sq[1].Sq[2]);
+
+  =>     Sq 
+           3
+
+  adem_analyse (Sq[1].Sq[2] + Sq[3]);
+
+  =>     0
+
+  (remember we're working mod 2!)
+*/
+adem_analyse (expr) := block([modulus: 2],
+  ratsimp(adem_analyse_worker (expr)))$
+
+/*
+  Calculate the degrees in which expr lies in the mod 2 Steenrod
+  algebra. Returns the answer as a set.
+
+  Examples:
+
+  steenrod_degrees (Sq[n]);
+
+  =>    {n}
+
+  steenrod_degrees (Sq[n] . (Sq[2] + Sq[3]^^k));
+
+  =>    {n + 2, n + 3 k}
+
+*/
+steenrod_degrees (expr) := block([dgs: {}],
+  steenrod_degrees_worker (expr, n),
+  dgs)$
+
+
+/* Code for Adem relations ******************************************/
 adem_make_admissible_pair(i,j) :=
   if is(i >= 2*j) then Sq[i].Sq[j] else
   sum(ncr2(j-k-1, i-2*k)*Sq[i+j-k].Sq[k], k, 0, floor(i/2))$
@@ -45,34 +90,9 @@ adem_analyse_worker (expr) := block(
         if is(old = new) then new else adem_analyse (new))
   elseif is(op(expr) = Sq) then expr
   else map(adem_analyse, expr))$
-/* END INTERNALS **************************************************/
 
-/*
-  adem_analyse analyses an expression containing Sq[i] and tries to
-  rewrite it in terms of the Serre-Cartan basis, where monomials
-  appear in the form Sq[a1].Sq[a2]. ... .Sq[ak] and a_{i} >= a_{i+1}.
 
-  It will, at least, ensure that monomials in a product get rewritten
-  in terms of the basis. It doesn't try to expand everything out
-  completely, since I suspect that's not very helpful.
-
-  Examples:
-
-  adem_analyse (Sq[1].Sq[2]);
-
-  =>     Sq 
-           3
-
-  adem_analyse (Sq[1].Sq[2] + Sq[3]);
-
-  =>     0
-
-  (remember we're working mod 2!)
-*/
-adem_analyse (expr) := block([modulus: 2],
-  ratsimp(adem_analyse_worker (expr)))$
-
-/* BEGIN INTERNALS **************************************************/
+/* Code for Steenrod degree calculations ****************************/
 steenrod_register_degree (n, degexpr) := block(
   dgs: adjoin(subst(n,'n,degexpr), dgs))$
 
@@ -102,23 +122,3 @@ steenrod_degrees_worker (expr, degexpr) := block(
   else
     error ("Unknown operator.")
   )$
-/* END INTERNALS **************************************************/
-
-/*
-  Calculate the degrees in which expr lies in the mod 2 Steenrod
-  algebra. Returns the answer as a set.
-
-  Examples:
-
-  steenrod_degrees (Sq[n]);
-
-  =>    {n}
-
-  steenrod_degrees (Sq[n] . (Sq[2] + Sq[3]^^k));
-
-  =>    {n + 2, n + 3 k}
-
-*/
-steenrod_degrees (expr) := block([dgs: {}],
-  steenrod_degrees_worker (expr, n),
-  dgs)$
