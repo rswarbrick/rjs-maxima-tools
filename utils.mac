@@ -17,3 +17,31 @@ head (lst, n) := makelist(lst[i], i, 1, min(n, length(lst)))$
 tail (lst, n) := makelist(lst[i], i, min(n, length(lst))+1, length(lst))$
 
 ncr2(n,c) := mod(binomial(n,c), 2)$
+
+/*
+  Return a list of pairs [x,n] where n is the index in the list.
+*/
+tag_list (lst) := zip (lst, iota(length(lst)))$
+
+zip (lst1, lst2) := map(lambda([x,n], [x,n]), lst1, lst2)$
+
+/*
+  A "histogram" function. Takes a list eg [1,1,2] and returns a set of
+  the form {[1,2], [2,1]}, meaning "1 occurs once and 2 occurs twice".
+
+  Yes, this is indeed a slow and silly implementation.
+*/
+first_equalp(pair1, pair2) := is(first(pair1)=first(pair2))$
+hist (lst) :=
+  map(lambda([st],
+             block([a: listify(st)],
+                   [first(first(a)), length(a)])),
+      equiv_classes(setify(tag_list(lst)), first_equalp))$
+
+
+/*
+  Count how many permutations there are which don't alter lst.
+*/
+num_identical_perms (lst) := block(
+  [h: listify(hist(lst))],
+  product(h[i][2], i, 1, length(h)))$

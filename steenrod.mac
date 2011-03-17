@@ -158,3 +158,4 @@ adem_admissible_seqs (total) :=
           map (lambda([l], adem_admissible_seqs_l (l, total, total)),
                iota(log(total+1)/log(2))))$
 
+/* Dual to Steenrod algebra *****************************************/
