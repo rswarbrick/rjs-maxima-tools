@@ -15,15 +15,21 @@ load("utils.mac")$
   a higher degree index. K=-1 means that the power series is defined
   for all degrees.
 */
-defstruct (fps (f, n, maxdeg))$
+defstruct (fps (f, vars, maxdeg))$
 
 fpsp (expr) :=
   is(not(atom(expr)) and op(expr) = 'fps and
   fps_validp(expr))$
 
 fps_validp (f) :=
-  is(integerp(f@n) and integerp(f@maxdeg) and
-     is(f@n > 0) and is(f@maxdeg >= -1))$
+  is(listp(f@vars) and is(length(f@vars) > 0) and
+     every(atom, f@vars) and
+     integerp(f@maxdeg) and
+     is(f@maxdeg >= -1))$
+
+fps_check_varlist (vars) :=
+  if(not(listp(vars) and length(vars)>0 and every(atom, vars)))
+  then error("vars must be a nonempty list of symbols")$
 
 /*
   Generate a formal power series in one variable from a list of
@@ -31,42 +37,42 @@ fps_validp (f) :=
 
   Performs a shallow copy of lst.
 */
-list_to_fps (lst) :=
+list_to_fps (lst, var) :=
   if not(listp(lst) and length(lst)>0) then
   error("lst must be nonempty.")
+  elseif not(atom(var)) then
+  error("var must be an atom")
   else
   block([f: new(fps)],
     f@f: buildq([cpy: copy(lst)], lambda([n], cpy[n+1])),
-    f@n: 1,
+    f@vars: [var],
     f@maxdeg: length(lst)-1,
     f)$
 
 /*
   Make a formal power series from a subscripted variable.
 */
-subvar_to_fps (x, nvars, maxpow) :=
-  if(not(symbolp(x))) then error("x should be a symbol")
-  else
-  block([f: new(fps)],
-    f@f: buildq([a: makelist(concat('x,i),i,1,nvars), x:x],
-                lambda(a, apply(subvar, cons(x, a)))),
-    f@n: nvars,
-    f@maxdeg: maxpow,
-    f)$
+subvar_to_fps (x, vars, maxpow) := block([f: new(fps)],
+  if(not(symbolp(x))) then error("x should be a symbol"),
+  fps_check_varlist (vars),
+  f@f: buildq([a: makelist(concat('x,i),i,1,length(vars)), x:x],
+              lambda(a, apply(subvar, cons(x, a)))),
+  f@vars: vars,
+  f@maxdeg: maxpow,
+  f)$
 
 /*
   Make a formal power series from a function.
 */
-function_to_fps (func, nvars, maxpow) :=
+function_to_fps (func, vars, maxpow) := block([f: new(fps)],
   if(not(symbolp(func) or (not(atom(func)) and op(func) = lambda)))
-  then error("x should be a symbol")
-  else
-  block([f: new(fps)],
-    f@f: buildq([a: makelist(concat('x,i),i,1,nvars), func:func],
-                lambda(a, apply(func, a))),
-    f@n: nvars,
-    f@maxdeg: maxpow,
-    f)$
+  then error("func should be a name of a function or a lambda form."),
+  fps_check_varlist (vars),
+  f@f: buildq([a: makelist(concat('x,i),i,1,length(vars)), f:func],
+              lambda(a, apply(f, a))),
+  f@vars: vars,
+  f@maxdeg: maxpow,
+  f)$
 
 /*
   Get the coefficient for the indices list I. If given an integer,
@@ -81,7 +87,7 @@ fps_get_coeff_sanity_check (fps, I) := block([],
   if (not(fpsp(fps) and listp(I))) then
   error("Needs a list of indices and a FPS"),
 
-  if(not(fps@n = length(I))) then
+  if(not(length(fps@vars) = length(I))) then
   error("Wrong number of indices."),
 
   for i in I do
@@ -95,29 +101,28 @@ fps_get_coeff_sanity_check (fps, I) := block([],
 /*
   Generate the partial sum of FPS up to the max degree requested.
 */
-fps_term (fps, variables, I) :=
-  if(not(length(variables) = length(I))) then
+fps_term (fps, I) :=
+  if(not(length(fps@vars) = length(I))) then
   error("Length of variables # length of indices")
   else
-  product(variables[k]^I[k], k, 1, length(I))*
-  fps_get_coeff (fps, I)$
+  product((fps@vars)[k]^I[k],k,1,length(I))*fps_get_coeff(fps, I)$
 
-fps_partial_sum_posorder (fps, variables, order) :=
-  block([parts: integer_partitions(order, length(variables)),
+fps_partial_sum_posorder (fps, order) :=
+  block([parts: integer_partitions(order, length(fps@vars)),
          acc: 0],
     for p in parts do
     for I in permutations(p) do
-    acc: acc + num_identical_perms(I)*fps_term(fps, variables, I),
+    acc: acc + num_identical_perms(I)*fps_term(fps, I),
     acc)$
 
-fps_partial_sum_order (fps, variables, order) :=
+fps_partial_sum_order (fps, order) :=
   if is(order < 0) then 0
   elseif is(order = 0) then
-  fps_term(fps, variables, map(lambda([x], 0), variables))
+  fps_term(fps, map(lambda([x], 0), fps@vars))
   else
-  fps_partial_sum_posorder (fps, variables, order)$
+  fps_partial_sum_posorder (fps, order)$
 
-fps_partial_sum (fps, variables, maxorder) := block([acc: 0],
+fps_partial_sum (fps, maxorder) := block([acc: 0],
   for n: 0 thru maxorder do
-  acc: acc + fps_partial_sum_order(fps,variables,n),
+  acc: acc + fps_partial_sum_order(fps,n),
   acc)$
