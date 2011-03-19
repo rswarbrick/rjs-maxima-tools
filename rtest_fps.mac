@@ -1,46 +1,47 @@
 kill (all);
 done;
 
-(fl: list_to_fps([x0,1,2,3,0,0,0,1]), 0);
+(fl: list_to_fps([x0,1,2,3,0,0,0,1], x), 0);
 0$
 
-fl@n;
-1$
+fl@vars;
+[x]$
 
 fl@maxdeg;
 7$
 
-fps_partial_sum(fl, [x], 2);
+fps_partial_sum_fps(fl, 2);
 x0+x+2*x^2$
 
-(fs: subvar_to_fps(a, 2, -1), 0);
+(fs: subvar_to_fps(a, [x,y], -1), 0);
 0$
 
-fs@n;
-2$
+fs@vars;
+[x,y]$
 
 fs@maxdeg;
 -1$
 
-ratcoef(ratcoef(fps_partial_sum(fs, [x,y], 3), y, 2), x);
+ratcoef(ratcoef(fps_partial_sum_fps(fs, 3), y, 2), x);
 a[1,2]$
 
 (a[0,0]: 1, a[0,1]: 2, a[1,0]: 3, 0);
 0$
 
-fps_partial_sum(fs, [x,y], 1);
+fps_partial_sum_fps(fs, 1);
 2*y+3*x+1$
 
 (ff: function_to_fps(lambda([i,j],
-                            if(is(i+j > 3)) then 0 else 1), 2, -1),
+                            if(is(i+j > 3)) then 0 else 1),
+                     [x,y], -1),
  0);
 0$
 
-ff@n;
-2$
+ff@vars;
+[x,y]$
 
 ff@maxdeg;
 -1$
 
-hipow(fps_partial_sum(ff, [x,y], 10), x);
+hipow(fps_partial_sum_fps(ff, 10), x);
 3$
