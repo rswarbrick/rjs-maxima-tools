@@ -1,4 +1,5 @@
 load("utils.mac")$
+load("fps.lisp")$
 
 /*
   Represent a power series in n variables x1,...,xn as some sort of
@@ -79,44 +80,20 @@ function_to_fps (func, vars, maxpow) := block([f: new(fps)],
   f)$
 
 /*
-  Get the coefficient for the indices list I. If given an integer,
-  treats it as a one-element list.
-*/
-fps_get_coeff (fps, I) := block([J],
-  if (integerp(I)) then J: [I] else J: I,
-  fps_get_coeff_sanity_check (fps, J),
-  apply(fps@f, J))$
-
-fps_get_coeff_sanity_check (fps, I) := block([],
-  if (not(fpsp(fps) and listp(I))) then
-  error("Needs a list of indices and a FPS"),
-
-  if(not(length(fps@vars) = length(I))) then
-  error("Wrong number of indices."),
-
-  for i in I do
-  if(not(integerp(i) and i>=0)) then
-  error("I must be a list of non-neg integers"),
-
-  block([tot: lsum(x,x,I)],
-    if (is(fps@maxdeg >= 0 and tot > fps@maxdeg)) then
-    error("FPS not defined to that degree.")));
-
-/*
   Generate the partial sum of FPS up to the max degree requested.
 */
 fps_term (fps, I) :=
   if(not(length(fps@vars) = length(I))) then
   error("Length of variables # length of indices")
   else
-  product((fps@vars)[k]^I[k],k,1,length(I))*fps_get_coeff(fps, I)$
+  product((fps@vars)[k]^I[k],k,1,length(I))*fps_extract_coeff(fps, I)$
 
 fps_partial_sum_posorder (fps, order) :=
-  block([parts: integer_partitions(order, length(fps@vars)),
-         acc: 0],
-    for p in parts do
-    for I in permutations(p) do
-    acc: acc + num_identical_perms(I)*fps_term(fps, I),
+  block([parts_: integer_partitions(order, length(fps@vars)),
+         acc_: 0],
+    for p_ in parts_ do
+    for I_ in permutations(p_) do
+    acc: acc_ + num_identical_perms(I_)*fps_term(fps, I_),
     acc)$
 
 fps_partial_sum_order (fps, order) :=
@@ -126,10 +103,10 @@ fps_partial_sum_order (fps, order) :=
   else
   fps_partial_sum_posorder (fps, order)$
 
-fps_partial_sum_fps (fps, maxorder) := block([acc: 0],
+fps_partial_sum_fps (fps, maxorder) := block([acc_: 0],
   for n: 0 thru maxorder do
-  acc: acc + fps_partial_sum_order(fps,n),
-  acc)$
+  acc_: acc_ + fps_partial_sum_order(fps,n),
+  acc_)$
 
 fps_find_bound_variables (expr) := block([fpsvars: {}],
   scanmap(lambda([x],
@@ -157,78 +134,47 @@ fps_partial_sum_compose (f, glist, maxorder) :=
   elseif not(length(f@vars) = length(glist))
   then error("Incorrect number of arguments in composition")
   else
-  block([expansions: map(lambda([g], fps_partial_sum_(g,maxorder)),
+  block([expansions_: map(lambda([g], fps_partial_sum_(g,maxorder)),
                          glist),
-         dummys: map(lambda([x], gensym("fps")), f@vars),
-         realvars: f@vars,
-         fexpansion],
+         dummys_: map(lambda([x], gensym("fps")), f@vars),
+         realvars_: f@vars,
+         fexpansion_],
         if not(every(lambda([e], is(fps_constant_term(e)=0)),
-                     expansions))
+                     expansions_))
         then error("Nonzero constant term")
         else
-        f@vars: dummys,
-        fexpansion: fps_partial_sum_fps (f, maxorder),
-        f@vars: realvars,
-        for i: 1 thru length(dummys) do
-        fexpansion: ratexpand(subst(expansions[i], dummys[i],
-                                    fexpansion)),
-        fexpansion)$
+        f@vars: dummys_,
+        fexpansion_: fps_partial_sum_fps (f, maxorder),
+        f@vars: realvars_,
+        for i: 1 thru length(dummys_) do
+        fexpansion_: ratexpand(subst(expansions_[i], dummys_[i],
+                                     fexpansion_)),
+        fexpansion_)$
 
 fps_partial_sum_ (expr, maxorder) :=
   if (is(atom(expr) or freeof('fps, expr))) then expr
-  else block([o: op(expr)],
-    if is(o='fps) then
+  else block([o_: op(expr)],
+    if is(o_='fps) then
       if is(fps_validp(expr)) then fps_partial_sum_fps (expr,maxorder)
       else error ("Invalid formal power series.")
-    elseif is(member(o, ["+","*","-"])) then
-      ratexpand(apply(o, map(lambda([x],fps_partial_sum_(x,maxorder)),
-                          args(expr))))
-    elseif is(o = "^" and integerp(second(expr)) and second(expr)>=0)
+    elseif is(member(o_, ["+","*","-"])) then
+      ratexpand(apply(o_, map(lambda([x],fps_partial_sum_(x,maxorder)),
+                              args(expr))))
+    elseif is(o_ = "^" and integerp(second(expr)) and second(expr)>=0)
     then
       ratexpand(fps_partial_sum_(first(expr), maxorder)^second(expr))
-    elseif is(o = 'compose) then
+    elseif is(o_ = 'compose) then
       fps_partial_sum_compose (first(expr),rest(args(expr)),maxorder)
     else
       error ("Cannot handle operator"))$
 
-/* True for atoms or powers of atoms */
-varpowp (expr) :=
-  is(atom(expr) or
-     (op(expr) = "^" and
-      atom(first(expr)) and integerp(second(expr))))$
-
-/* Uses dynamically bound fpsvars */
-freeof_fpsvars (expr) :=
-  every(lambda([v], freeof(v, expr)), fpsvars)$
-
-/*
-  Tests to see whether an expression is a monomial in the variables we
-  care about. Note that we use dynamically bound fpsvars, since if
-  we're looking at an fps in x,y then (a^2+1)*x^2*y will be
-  represented as
-
-  ((MTIMES SIMP)
-   ((MPLUS SIMP) 1 ((MEXPT SIMP) $A 2))
-   ((MEXPT SIMP) $X 2) $Y)
-
-  and if we drilled down further in code to find monomial orders it'd
-  give the wrong answer!
-*/
-fps_monomialp (expr) :=
-  is(varpowp (expr) or
-     (op(expr)="*" and
-      every(lambda([u], is(varpowp(u) or freeof_fpsvars(u))),
-            args(expr))))$
-
-/*
-  Uses dynamically bound fpsvars.
-*/
-fps_monomial_power (m) :=
+/* Uses dynamically bound fpsvars. */
+fps_monomial_order (m) :=
   if (freeof_fpsvars (m)) then 0
   elseif atom(m) then 1
   elseif is(varpowp(m)) then second(m)
   elseif not(op(m) = "*") then error("Invalid monomial")
-  else lsum(fps_monomial_power(e), e, args(m))$
+  else lsum(fps_monomial_order(e), e, args(m))$
 
 /*
   Returns expr unless expr is a monomial of power higher than
@@ -237,7 +183,7 @@ fps_monomial_power (m) :=
 */
 fps_kill_hidegrees (expr) :=
   if (not(fps_monomialp(expr)) or
-      is(fps_monomial_power(expr) <= fpsmaxpow)) then expr
+      is(fps_monomial_order(expr) <= fpsmaxpow)) then expr
   else 0$
 
 /*
