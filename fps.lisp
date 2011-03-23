@@ -94,17 +94,6 @@
     (fps-get-coeff expr (fps-monomial-degrees indmonomial))))
 
 
-;; fps_get_coeff_ (expr, indset) := block(
-;;   if is(atom(expr)) then fps_get_coeff_atom_ (expr, indset)
-;;   else
-;;   block ([o_: op(expr), a_: args(expr)],
-;;     if is(o_ = 'fps) then fps_get_coeff_fps_ (expr, indset)
-;;     elseif is(o_ = "+")
-;;     then apply(o_, map(lambda([x_], fps_get_coeff_ (x_, indset)), a_))
-;;     elseif is(o_ = "*")
-;;     then fps_get_coeff_times_ (expr, indset)
-;;     else error(")))$
-
 ;; INDSET should be of the form (($x $y) 2 3)
 (defun fps-get-coeff (expr indset)
   (let ((real-op (unless ($atom expr)
@@ -120,6 +109,8 @@
        (fps-get-coeff-times expr indset))
       ((equal real-op 'MEXPT)
        (fps-get-coeff-pow expr indset))
+      ((equal real-op '$COMPOSE)
+       (fps-get-coeff-comp expr indset))
       (t
        (merror
         (format nil "Can't deal with this expression yet (operator: ~A)"
@@ -253,3 +244,56 @@
       (1 (fps-get-coeff-pow-1 down up (caar indset) (cadr indset)))
       (otherwise
        (merror "Currently can only do powers with <= 1 variable.")))))
+
+(defun each-lst-sum-between (fun min max len &optional prev)
+  "Call FUN on each list of non-negative integers whose sum is at at least MIN
+and at most MAX. Assumes that it gets called with LEN
+positive. Return (VALUES)."
+  (unless (or (< max min) (< len 1))
+    (if (= len 1)
+        (loop
+           for n from (max 0 min) to max
+           do (funcall fun (append prev (list n))))
+        (loop
+           for n from 0 to max
+           do (each-lst-sum-between fun (- min n) (- max n) (1- len)
+                                    (append prev (list n)))))))
+
+(defun fps-get-coeff-comp-1 (fps args var pow)
+  (unless (every (lambda (arg)
+                   (equal 0 (fps-get-coeff arg (list (list var) 0))))
+                 args)
+    (merror "Composition of FPS's only makes sense when const coeffs 0"))
+
+  (let ((sum 0))
+    (each-lst-sum-between
+     (lambda (powers)
+       (let ((prod 1))
+         (do ((powsleft powers (cdr powsleft))
+              (argsleft args (cdr argsleft))
+              (n 0 (1+ n)))
+             ((not powsleft))
+           (when (> (car powsleft) 0)
+             (setf prod
+                   (mul prod
+                        (fps-get-coeff (power (car argsleft) (car powsleft))
+                                       (list (list var) pow))))))
+         (setf sum (add sum (mul ($fps_extract_coeff fps `((mlist) ,@powers))
+                                 prod)))))
+     1 pow (length args))
+    sum))
+
+(defun fps-get-coeff-comp (comp indset)
+  (let ((fps ($first comp))
+        (args (cddr comp)))
+    (unless (and (listp fps) (listp (car fps)) (equal (caar fps) '$FPS))
+      (merror "Can only do composition with straight FPS outside."))
+
+    (unless (= (length (cdr ($second fps))) (length args))
+      (merror "Number of args not number of variables in outside FPS."))
+
+    (case (length (car indset))
+      (0 (fps-get-coeff fps (list (car indset) 0)))
+      (1 (fps-get-coeff-comp-1 fps args (caar indset) (cadr indset)))
+      (otherwise
+       (merror "Can only currently expand composites in one variable.")))))
