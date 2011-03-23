@@ -118,6 +118,8 @@
                      (cdr ($args expr)))))
       ((equal real-op 'MTIMES)
        (fps-get-coeff-times expr indset))
+      ((equal real-op 'MEXPT)
+       (fps-get-coeff-pow expr indset))
       (t
        (merror
         (format nil "Can't deal with this expression yet (operator: ~A)"
@@ -202,3 +204,52 @@
         (each-lst-less-than fun (cdr maxes) (append prev (list n))))
       (funcall fun prev)))
 
+(defun hist (seq)
+  (let ((ht (make-hash-table)))
+    (map nil (lambda (x)
+               (let ((n (gethash x ht)))
+                 (setf (gethash x ht) (if n (1+ n) 1))))
+         seq)
+    ht))
+
+(defun num-identical-permutations (seq)
+  (let ((k 1))
+    (maphash (lambda (x n)
+               (declare (ignore x))
+               (setf k (* k (factorial n))))
+             (hist seq))
+    k))
+
+(defun fps-get-coeff-pow-1 (down up var power)
+  (let ((ht (make-hash-table)) (sum 0))
+    (flet ((a-coef (k)
+             (let ((hit (gethash k ht)))
+               (unless hit
+                 (setf hit (fps-get-coeff down (list (list var) k)))
+                 (setf (gethash k ht) hit))
+               hit)))
+      (map nil
+           (lambda (partition)
+             (let ((prod 1))
+               (dolist (k partition)
+                 (let ((c (a-coef k)))
+                   (if (equal c 0)
+                       (progn (setf prod 0) (return))
+                       (setf prod (mul prod c)))))
+               (setf sum (add sum
+                              (mul (/ (factorial (length partition))
+                                      (num-identical-permutations partition))
+                                   prod)))))
+           (mapcar #'cdr (cdr ($integer_partitions power up))))
+      sum)))
+
+(defun fps-get-coeff-pow (exp indset)
+  (let ((down ($first exp)) (up ($second exp)))
+    (unless (integerp up) (merror "Can't deal with this exponent."))
+    (unless (> up 0) (merror "Can only deal with positive exponents."))
+
+    (case (length (car indset))
+      (0 (power (fps-get-coeff down indset) up))
+      (1 (fps-get-coeff-pow-1 down up (caar indset) (cadr indset)))
+      (otherwise
+       (merror "Currently can only do powers with <= 1 variable.")))))
