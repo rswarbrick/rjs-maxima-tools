@@ -22,8 +22,8 @@
     (cond
       (($atom expr) (fps-get-coeff-atom expr indset))
       ((equal real-op '$FPS) (fps-get-coeff-fps expr indset))
-      ((equal real-op 'MPLUS)
-       (cons '(MPLUS)
+      ((member real-op '(MPLUS MMINUS))
+       (cons (list real-op)
              (mapcar (lambda (x) (fps-get-coeff x indset))
                      (cdr ($args expr)))))
       ((equal real-op 'MTIMES)

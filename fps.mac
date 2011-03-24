@@ -22,6 +22,7 @@ load("utils.mac")$
 defstruct (fps (f, vars, maxdeg))$
 
 load("fps.lisp")$
+load("fps-make.lisp")$
 load("fps-coeff.lisp")$
 load("fps-partsum.lisp")$
 load("fps-calc.lisp")$
