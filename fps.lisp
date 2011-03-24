@@ -1,5 +1,10 @@
 (in-package :maxima)
 
+(defmfun $fpsp (expr)
+  (and (not (atom expr))
+       (equal (caar expr) '$fps)
+       (fps-validp expr)))
+
 (defun fps-validp (f)
   (and ($listp ($second f))
        (> (length (cdr ($second f))) 0)
@@ -85,3 +90,4 @@
     (unless (= (length (remove-duplicates vars)) (length vars))
       (merror "Duplicate variable"))
     (cons vars pows)))
+

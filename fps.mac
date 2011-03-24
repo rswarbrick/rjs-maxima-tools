@@ -1,9 +1,5 @@
 load("utils.mac")$
 
-load("fps.lisp")$
-load("fps-coeff.lisp")$
-load("fps-partsum.lisp")$
-
 /*
   Represent a power series in n variables x1,...,xn as some sort of
   assoc which allows
@@ -25,59 +21,7 @@ load("fps-partsum.lisp")$
 */
 defstruct (fps (f, vars, maxdeg))$
 
-fpsp (expr) :=
-  is(not(atom(expr)) and op(expr) = 'fps and
-  fps_validp(expr))$
-
-fps_validp (f) :=
-  is(listp(f@vars) and is(length(f@vars) > 0) and
-     every(atom, f@vars) and
-     integerp(f@maxdeg) and
-     is(f@maxdeg >= -1))$
-
-fps_check_varlist (vars) :=
-  if(not(listp(vars) and length(vars)>0 and every(atom, vars)))
-  then error("vars must be a nonempty list of symbols")$
-
-/*
-  Generate a formal power series in one variable from a list of
-  coefficients.
-
-  Performs a shallow copy of lst.
-*/
-list_to_fps (lst, var) :=
-  if not(listp(lst) and length(lst)>0) then
-  error("lst must be nonempty.")
-  elseif not(atom(var)) then
-  error("var must be an atom")
-  else
-  block([f: new(fps)],
-    f@f: buildq([cpy: copy(lst)], lambda([n], cpy[n+1])),
-    f@vars: [var],
-    f@maxdeg: length(lst)-1,
-    f)$
-
-/*
-  Make a formal power series from a subscripted variable.
-*/
-subvar_to_fps (x, vars, maxpow) := block([f: new(fps)],
-  if(not(symbolp(x))) then error("x should be a symbol"),
-  fps_check_varlist (vars),
-  f@f: buildq([a: makelist(concat('x,i),i,1,length(vars)), x:x],
-              lambda(a, apply(subvar, cons(x, a)))),
-  f@vars: vars,
-  f@maxdeg: maxpow,
-  f)$
-
-/*
-  Make a formal power series from a function.
-*/
-function_to_fps (func, vars, maxpow) := block([f: new(fps)],
-  if(not(symbolp(func) or (not(atom(func)) and op(func) = lambda)))
-  then error("func should be a name of a function or a lambda form."),
-  fps_check_varlist (vars),
-  f@f: buildq([a: makelist(concat('x,i),i,1,length(vars)), f:func],
-              lambda(a, apply(f, a))),
-  f@vars: vars,
-  f@maxdeg: maxpow,
-  f)$
+load("fps.lisp")$
+load("fps-coeff.lisp")$
+load("fps-partsum.lisp")$
+load("fps-calc.lisp")$
