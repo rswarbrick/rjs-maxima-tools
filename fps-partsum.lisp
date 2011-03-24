@@ -29,10 +29,15 @@
 (defun fps-bound-variables (expr)
   (let ((ht (make-hash-table)) (vars nil))
     (labels ((process (x)
-             (unless (atom x)
-               (if (equal (caar x) '$fps)
-                   (add-vars (cdr ($second x)))
-                   (map nil #'process (cdr x)))))
+               (cond
+                 ((atom x) nil)
+
+                 ((equal (caar x) '$fps) (add-vars (cdr ($second x))))
+
+                 ((equal (caar x) '$compose)
+                  (map nil #'process (cddr x)))
+
+                 (t (map nil #'process (cdr x)))))
            (add-vars (vars)
              (dolist (v vars) (setf (gethash v ht) t))))
       (process expr)

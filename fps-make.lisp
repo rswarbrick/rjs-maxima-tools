@@ -30,8 +30,8 @@
     (merror "maxorder must be an integer"))
   (fps-check-varlist vars)
   `(($fps)
-    ((lambda) ((mlist) n)
-     (($apply) $subvar (($cons) ,subvar ((mlist) n))))
+    ((lambda) ,vars
+     (($apply) $subvar (($cons) ,subvar ,vars)))
     ,vars ,maxorder))
 
 (defmfun $function_to_fps (func vars maxorder)

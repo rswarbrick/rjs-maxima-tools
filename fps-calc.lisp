@@ -69,7 +69,7 @@
                 (nth pos rh)))
             (cdr vars-to-find))))
 
-(defmfun $fps_populate_subvar (subvar expr maxorder)
+(defmfun $fps_populate_subvar (subvar expr maxorder &optional (kill? t))
   "Consider EXPR, an expression involving SUBVAR, to be equal to zero and fill
   in the coefficients of subvar, finally returning subvar_to_fps(subvar, vars,
   maxorder)."
@@ -77,9 +77,9 @@
     (merror "subvar must be a symbol"))
   (unless (and (integerp maxorder) (<= 0 maxorder))
     (merror "maxorder must be a non-negative integer."))
-  
+
   (let ((vars (fps-bound-variables expr)))
-    (kill1 subvar)
+    (when kill? (kill1 subvar))
     (loop
        for order from 0 to maxorder do
          (let* ((eqns
@@ -92,7 +92,7 @@
            (when (> (length solve-for) (length eqns))
              (merror "Trying to solve for more variables than we have equations."
                      solve-for eqns))
-           (unless (= 0 (length eqns))
+           (unless (= 0 (length (cdr solve-for)))
              (loop
                 for var in (cdr solve-for)
                 for ans in (try-to-extract-solutions solve-for
