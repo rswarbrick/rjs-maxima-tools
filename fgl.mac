@@ -1,0 +1,15 @@
+kill(all);
+
+/*load("fps.mac");*/
+
+fgl_coeff (i,j) := if is(i<j) then fgl_coeff_(i,j) else fgl_coeff_(j,i)$
+fgl_coeff_(i,j) := if is(i=0) then (if is(j=1) then 1 else 0) else a[i,j]$
+
+fgl: function_to_fps(fgl_coeff, [x,y], -1)$
+id: list_to_fps([0,1], z, true)$
+minus: subvar_to_fps(b, [z], -1)$
+b[0]: 0$
+
+comp: compose(fgl, id, minus);
+
+fps_populate_subvar(b, comp, 5, false);

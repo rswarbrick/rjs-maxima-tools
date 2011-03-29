@@ -28,7 +28,7 @@
       (list (list n))))
 
 (defun all-variables (expr &optional ignore-these)
-  (let ((ht (make-hash-table)) (vars nil))
+  (let ((ht (make-hash-table :test 'equalp)) (vars nil))
     (labels ((process (x)
                (cond
                  ((atom x)
@@ -89,9 +89,11 @@
                                                       (cons vars part)))
                         (ordered-integer-partitions order (length vars)))))
                 (solve-for (cons '(mlist) (occurrences-of-subvar subvar eqns))))
+
            (when (> (length solve-for) (length eqns))
              (merror "Trying to solve for more variables than we have equations."
                      solve-for eqns))
+
            (unless (= 0 (length (cdr solve-for)))
              (loop
                 for var in (cdr solve-for)

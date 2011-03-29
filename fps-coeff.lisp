@@ -196,18 +196,20 @@ positive. Return (VALUES)."
   (let ((sum 0))
     (each-lst-sum-between
      (lambda (powers)
-       (let ((prod 1))
-         (do ((powsleft powers (cdr powsleft))
-              (argsleft args (cdr argsleft))
-              (n 0 (1+ n)))
-             ((not powsleft))
-           (when (> (car powsleft) 0)
-             (setf prod
-                   (mul prod
-                        (fps-get-coeff (power (car argsleft) (car powsleft))
-                                       (list (list var) pow))))))
-         (setf sum (add sum (mul ($fps_extract_coeff fps `((mlist) ,@powers))
-                                 prod)))))
+       (let ((prod 1)
+             (coeff ($fps_extract_coeff fps `((mlist) ,@powers))))
+         ;; I have chosen the powers to which I'm going to raise the
+         ;; arguments. I've already extracted the coefficient from the parent
+         ;; fps, since that might be zero and I don't want to waste time if so.
+         ;;
+         ;; Now I want the coefficient of "z^n" in the arguments raised to these
+         ;; powers.
+         (loop
+            for a in args
+            for p in powers
+            when (> p 0) do (setf prod (mul prod (pow a p))))
+         (setf sum
+               (add sum (mul coeff (fps-get-coeff prod (list (list var) pow)))))))
      1 pow (length args))
     sum))
 
