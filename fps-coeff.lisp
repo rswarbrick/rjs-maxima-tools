@@ -32,6 +32,8 @@
        (fps-get-coeff-pow expr indset))
       ((equal real-op '$COMPOSE)
        (fps-get-coeff-comp expr indset))
+      ((equal real-op '%SUM)
+       (fps-get-coeff-sum expr indset))
       (t
        (merror
         (format nil "Can't deal with this expression yet (operator: ~A)"
@@ -223,3 +225,100 @@ positive. Return (VALUES)."
       (1 (fps-get-coeff-comp-1 fps args (caar indset) (cadr indset)))
       (otherwise
        (merror "Can only currently expand composites in one variable.")))))
+
+;; ((%SUM SIMP) ((MTIMES . #1=(SIMP)) (($A SIMP ARRAY) $N) ((MEXPT . #1#) $X
+;; $N)) $N 0 $INF)
+
+(defun fps-analyze-sum (expr)
+  "Spot sums with terms of the form f(n)*a^l1(n)*b^l2(n) etc. where l1 and l2
+are (assumed to be increasing) functions of the form u*n+c.
+
+Returns (const . ((x 3 2) (y 1 0))) for const*x^(3n+2)*y^n."
+
+  (unless (and (not (atom expr)) (eq (caar expr) '%SUM))
+    (merror "Cannot analyse expr since it's not a sum."))
+  (let ((term ($first expr))
+        (var ($second expr)))
+    (flet ((analyse-parts (parts)
+             (let ((monomials) (const))
+               (loop
+                  for part in parts do
+                    (if (not (and (mexptp part)
+                                  (symbolp ($first part))))
+                        (push part const)
+                        (let ((ana (islinear ($second part) var)))
+                          (if ana
+                              (push (list ($first part) (car ana)
+                                          (cdr ana))
+                                    monomials)
+                              (push part const)))))
+               (cons (reduce #'mul const) monomials))))
+      (cond
+        ((mtimesp term)
+         (analyse-parts (rest term)))
+        ((and (mexptp term) (symbolp ($first term)))
+         (analyse-parts (list term)))
+        (t (cons term nil))))))
+
+(defun fps-get-coeff-sum (sum indset)
+  (let* ((ana-coeff (fps-analyze-sum sum))
+         (constraints))
+    (when (or (not (or (integerp ($third sum))
+                       (memq ($third sum) '($INF $MINF))))
+              (not (or (integerp ($fourth sum))
+                       (memq ($fourth sum) '($INF $MINF)))))
+      (merror "Can only cope with numbers and infinities as sum bounds."))
+
+    ;; This is only going to work if, after analysis of the terms of the sum,
+    ;; the constant terms remaining are free of each variable in indset.
+    (loop
+       for x in (car indset)
+       unless (freeof x (car ana-coeff))
+       do (merror "Can't analyse sum enough to separate out variable."))
+
+    (cond
+      ((loop
+          for x in (car indset)
+          for n in (cdr indset)
+          do (let ((c (find x (cdr ana-coeff) :key #'car)))
+               (if c
+                   ;; Constraints will hold the different things "n" must equal.
+                   (push (div (sub n (third c)) (second c)) constraints)
+                   ;; Else if n>0, we know there can be no contribution from the
+                   ;; entire sum, so return here.
+                   (if (> n 0) (return t)))))
+       0)
+
+      ((null constraints) sum)
+
+      ;; Look for constraints that conflict with the first one.
+      ((loop
+          for c in (cdr constraints)
+          do (let ((z ($zeroequiv (sub (car constraints) c) 0)))
+               (when (eq z '$dontknow)
+                 (merror "Can't determine whether there's a contribution here."))
+               (unless z (return t))))
+       0)
+
+      ((not (numberp (car constraints)))
+       (merror "Can't deal with a non-numeric power at the moment."))
+
+      ((or (not (integerp (car constraints)))
+           (eq ($third sum) '$INF)
+           (eq ($fourth sum) '$MINF)
+           (and (numberp ($third sum)) (> ($third sum) (car constraints)))
+           (and (numberp ($fourth sum)) (< ($fourth sum) (car constraints))))
+       0)
+
+      ;; Use the first constraint to set n.
+      (t
+       (mul (subst (car constraints) ($second sum) (car ana-coeff))
+            (reduce #'mul
+                    (mapcar
+                     (lambda (monomial)
+                       (pow (first monomial)
+                            (add (mul (second monomial) (car constraints))
+                                 (third monomial))))
+                     (remove-if (lambda (monomial)
+                                  (member (car monomial) (car indset)))
+                                (cdr ana-coeff)))))))))

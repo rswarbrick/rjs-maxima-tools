@@ -42,11 +42,11 @@
        (every (lambda (v) (freeof v expr)) (cdr $fpsvars))))
 
 ;; True for atoms or powers of atoms
-(defmfun $varpowp (expr)
+(defun varpowp (expr &optional (expt-test #'integerp))
   (or ($atom expr)
       (and (string= ($op expr) "^")
            ($atom ($first expr))
-           (integerp ($second expr)))))
+           (funcall expt-test ($second expr)))))
 
 ;; Tests to see whether an expression is a monomial in the variables we care
 ;; about. Note that we use dynamically bound fpsvars, since if we're looking at
@@ -63,9 +63,9 @@
 ;; (rather than the more logical true) so that we can use this code to check for
 ;; general monomials too.
 (defmfun $fps_monomialp (expr)
-  (or ($varpowp expr)
+  (or (varpowp expr)
       (and (string= ($op expr) "*")
-           (every (lambda (u) (or ($varpowp u) (freeof-fpsvars u)))
+           (every (lambda (u) (or (varpowp u) (freeof-fpsvars u)))
                   (cdr expr)))))
 
 (defun fps-monomial-degrees_ (m)
@@ -74,7 +74,7 @@
   (cond
     (($numberp m) '(($SET)))
     (($atom m) `(($SET) ((MLIST) ,m 1)))
-    (($varpowp m) `(($SET)
+    ((varpowp m) `(($SET)
                     ((MLIST) ,($first m) ,($second m))))
     ((string= ($op m) "*")
      (reduce #'$union (mapcar #'fps-monomial-degrees_ (cdr m))))

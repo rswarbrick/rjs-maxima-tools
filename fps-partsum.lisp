@@ -110,7 +110,7 @@
   (cond
     ((freeof-fpsvars m) 0)
     ((atom m) 1)
-    (($varpowp m) ($second m))
+    ((varpowp m) ($second m))
     (t
      (unless (equal (caar m) 'MTIMES)
        (merror "Invalid monomial"))
